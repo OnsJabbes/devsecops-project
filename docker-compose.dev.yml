@@ -1,0 +1,84 @@
+﻿version: "3.9"
+
+services:
+
+  mysql:
+    image: mysql:${MYSQL_VERSION}
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_FORMATION}
+      MYSQL_USER: ${MYSQL_DATABASE_USER}
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      -  devsecops-network
+
+  eureka-server:
+    build: ../../backend/Eureka-Server
+    container_name: eureka-server
+    ports:
+      - "${EUREKA_PORT}:8761"
+    depends_on:
+      - mysql
+    networks:
+      -  devsecops-network
+
+  formation-service:
+    build: ../../backend/Formation-Service
+    container_name: formation-service
+    ports:
+      - "${FORMATION_PORT}:9094"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE_FORMATION}?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_DATABASE_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+    depends_on:
+      - eureka-server
+      - mysql
+    networks:
+      -  devsecops-network
+
+  user-service:
+    build: ../../backend/User-Service
+    container_name: user-service
+    ports:
+      - "${USER_PORT}:8089"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE_USER}?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_DATABASE_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    depends_on:
+      - eureka-server
+      - mysql
+    networks:
+      -   devsecops-network
+
+  frontend:
+    build: ../../frontend
+    container_name: angular-frontend
+    ports:
+      - "${FRONTEND_PORT}:80"
+    depends_on:
+      - formation-service
+      - user-service
+    networks:
+      -  devsecops-network
+
+volumes:
+  mysql-data:
+
+networks:
+  networks:
+  devsecops-network:
+    driver: bridge
+

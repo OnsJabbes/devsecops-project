@@ -1,0 +1,27 @@
+﻿# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Node / Angular
+node_modules/
+dist/
+npm-debug.log
+
+# Java / Maven
+target/
+*.war
+*.jar
+logs/
+*.log
+
+# Docker / env
+.env
+docker-compose.override.yml
+
+# Misc
+*.swp
