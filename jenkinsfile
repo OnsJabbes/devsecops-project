@@ -1,10 +1,6 @@
 pipeline {
     agent { label 'agent-docker' }
 
-    options {
-        customWorkspace '/home/cloudshell-user/jenkins-agent/workspace'
-    }
-
     stages {
         stage('Checkout') {
             steps {
