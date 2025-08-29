@@ -1,4 +1,4 @@
-﻿version: "3.9"
+version: "3.9"
 
 services:
 
@@ -78,7 +78,6 @@ volumes:
   mysql-data:
 
 networks:
-  networks:
   devsecops-network:
     driver: bridge
 

@@ -1,5 +1,9 @@
 pipeline {
-    agent any
+    agent { label 'agent-docker' }
+
+    options {
+        customWorkspace '/home/cloudshell-user/jenkins-agent/workspace'
+    }
 
     stages {
         stage('Checkout') {
@@ -8,24 +12,14 @@ pipeline {
                     url: 'https://github.com/OnsJabbes/devsecops-project.git'
             }
         }
-
         stage('Build') {
-            steps {
-                sh 'echo "Building project..."'
-            }
+            steps { sh 'echo "Building project..."' }
         }
-
         stage('Test') {
-            steps {
-                sh 'echo "Running tests..."'
-            }
+            steps { sh 'echo "Running tests..."' }
         }
-
         stage('Docker Build') {
-            steps {
-                sh 'echo "Building Docker image..."'
-               
-            }
+            steps { sh 'echo "Building Docker image..."' }
         }
     }
 }
