@@ -1,21 +1,10 @@
 pipeline {
-    agent { label 'agent-docker' }
-
+    agent any  
     stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/OnsJabbes/devsecops-project.git'
-            }
-        }
         stage('Build') {
-            steps { sh 'echo "Building project..."' }
-        }
-        stage('Test') {
-            steps { sh 'echo "Running tests..."' }
-        }
-        stage('Docker Build') {
-            steps { sh 'echo "Building Docker image..."' }
+            steps {
+                echo "Running on master"
+            }
         }
     }
 }
