@@ -1,10 +1,78 @@
 pipeline {
-    agent any  
+    agent any
+
+    environment {
+        DOCKER_USER = "onsonsonsons"
+        DOCKER_REGISTRY = "docker.io"
+        GIT_COMMIT_SHORT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+    }
+
     stages {
-        stage('Build') {
+
+        stage('Checkout') {
             steps {
-                echo "Running on master"
+                git url: 'https://github.com/OnsJabbes/devsecops-project.git', credentialsId: 'devsecops'
             }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    sh "docker build -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server"
+                    sh "docker build -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service"
+                    sh "docker build -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service"
+                    sh "docker build -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend"
+                }
+            }
+        }
+
+        stage('Trivy Security Scan') {
+            steps {
+                script {
+                    def images = ["eureka-server", "formation-service", "user-service", "frontend"]
+                    for (img in images) {
+                        sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT} || exit 1"
+                    }
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT}
+                        docker push ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
+                        docker push ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT}
+                        docker push ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT}
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to EC2') {
+            steps {
+                sshagent(['ec2-ssh-key']) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ec2-user@18.215.53.218 '
+                        cd /home/ec2-user/devsecops-project &&
+                        docker-compose pull &&
+                        docker-compose down &&
+                        docker-compose up -d
+                    '
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ DevSecOps pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check build, Trivy scan, or deployment logs."
         }
     }
 }
