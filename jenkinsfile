@@ -9,11 +9,17 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git url: 'https://github.com/OnsJabbes/devsecops-project.git', credentialsId: 'devsecops'
+        stage('Checkout & Prepare') {
+          steps {
+    
+            checkout scm
+            script {
+              env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+              echo "Commit short: ${env.GIT_COMMIT_SHORT}"
             }
-        }
+          }
+    }
+
 
         stage('Build Docker Images') {
             steps {
