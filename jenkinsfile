@@ -24,12 +24,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    sh """
-                docker build \
-                --build-arg MAVEN_CMD="mvn" \
-                -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} \
-                ./backend/Eureka-Server
-                    """  
+                    sh "docker build --build-arg MAVEN_CMD='mvn' -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server"
                     sh "docker build -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service"
                     sh "docker build -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service"
                     sh "docker build -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend"
