@@ -17,7 +17,9 @@ COPY pom.xml .
 COPY src ./src
 
 # Build the application
-RUN mvn clean package -DskipTests && mv target/*.jar app.jar
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn clean package -DskipTests && \
+    mv target/*.jar app.jar
 
 # Expose Eureka port
 EXPOSE 8761
