@@ -1,23 +1,26 @@
-# Use official OpenJDK 17 image
-FROM eclipse-temurin:17-jdk-alpine
+# Use Maven + JDK base image
+FROM maven:3.9.2-eclipse-temurin-17
 
-# Set working directory inside container
+# Set UTF-8 environment variables
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+
+# Set working directory
 WORKDIR /app
 
-# Copy Maven project files
+# Copy pom.xml first for better caching
 COPY pom.xml .
+
+# Copy source code
 COPY src ./src
 
-
-# RUN ./mvnw clean package -DskipTests
-
-
-ARG MAVEN_CMD=mvn
-RUN $MAVEN_CMD clean package -DskipTests && \
-    mv target/*.jar app.jar
+# Build the application
+RUN mvn clean package -DskipTests && mv target/*.jar app.jar
 
 # Expose Eureka port
 EXPOSE 8761
 
 # Run the jar
-CMD ["java", "-jar", "target/Eureka-Server-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
