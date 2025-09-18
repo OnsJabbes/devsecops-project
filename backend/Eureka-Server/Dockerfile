@@ -8,8 +8,13 @@ WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 
-# Build the application
-RUN ./mvnw clean package -DskipTests
+
+# RUN ./mvnw clean package -DskipTests
+
+
+ARG MAVEN_CMD=mvn
+RUN $MAVEN_CMD clean package -DskipTests && \
+    mv target/*.jar app.jar
 
 # Expose Eureka port
 EXPOSE 8761
