@@ -24,7 +24,6 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    sh "DOCKER_BUILDKIT=1 docker build --build-arg MAVEN_CMD='mvn' -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server"
                     sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service"
                     sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service"
                     sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend"
@@ -36,7 +35,7 @@ pipeline {
         stage('Trivy Security Scan') {
             steps {
                 script {
-                    def images = ["eureka-server", "formation-service", "user-service", "frontend"]
+                    def images = ["formation-service", "user-service", "frontend"]
                     for (img in images) {
                         sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT} || exit 1"
                     }
@@ -49,7 +48,6 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh """
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT}
                         docker push ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
                         docker push ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT}
                         docker push ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT}
