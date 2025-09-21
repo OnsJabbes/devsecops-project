@@ -10,19 +10,18 @@ ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
 # Set working directory
 WORKDIR /app
 
-# Copy pom.xml first for better caching
-COPY pom.xml .
+# Copy pom.xml first for caching
+COPY pom.xml ./
 
 # Copy source code
 COPY src ./src
 
-# Build the application
+# Build the application (skip tests)
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn clean package -DskipTests && \
-    mv target/*.jar app.jar
+    mvn clean package -DskipTests
 
 # Expose Eureka port
 EXPOSE 8761
 
-# Run the jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run the JAR built inside the container
+CMD ["mvn", "spring-boot:run"]
