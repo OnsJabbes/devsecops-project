@@ -8,18 +8,15 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout & Prepare') {
-          steps {
-    
-            checkout scm
-            script {
-              env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-              echo "Commit short: ${env.GIT_COMMIT_SHORT}"
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    echo "Commit short: ${env.GIT_COMMIT_SHORT}"
+                }
             }
-          }
-    }
-
+        }
 
         stage('Build Docker Images') {
             steps {
@@ -27,7 +24,6 @@ pipeline {
                     sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service"
                     sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service"
                     sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend"
-
                 }
             }
         }
