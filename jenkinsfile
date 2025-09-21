@@ -18,15 +18,40 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
-            steps {
-                script {
-                    sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service"
-                    sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service"
-                    sh "DOCKER_BUILDKIT=1 docker build -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend"
-                }
-            }
+        stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+          echo "Commit short: ${env.GIT_COMMIT_SHORT}"
         }
+      }
+    }
+
+    stage('Prepare Buildx') {
+      steps {
+        sh '''
+          export DOCKER_CLI_EXPERIMENTAL=enabled
+          docker buildx inspect mybuilder >/dev/null 2>&1 || docker buildx create --use --name mybuilder
+          docker buildx use mybuilder
+        '''
+      }
+    }
+
+    stage('Build Docker Images (BuildKit)') {
+      steps {
+        script {
+          env.DOCKER_BUILDKIT = "1"
+          // Build images and load to local docker (so Trivy can scan)
+          sh """
+            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server --load
+            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service --load
+            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service --load
+            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend --load
+          """
+        }
+      }
+    }
 
         stage('Trivy Security Scan') {
             steps {
