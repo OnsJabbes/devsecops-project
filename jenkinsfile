@@ -47,7 +47,7 @@ pipeline {
             docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server --load
             docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service --load
             docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service --load
-            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT} ./frontend --load
+            
           """
         }
       }
@@ -71,7 +71,6 @@ pipeline {
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                         docker push ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
                         docker push ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT}
-                        docker push ${DOCKER_USER}/frontend:${GIT_COMMIT_SHORT}
                     """
                 }
             }
