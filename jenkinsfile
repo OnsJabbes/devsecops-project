@@ -56,7 +56,7 @@ pipeline {
         stage('Trivy Security Scan') {
             steps {
                 script {
-                    def images = ["formation-service", "user-service", "frontend"]
+                    def images = ["eureka-server", "formation-service", "user-service"]
                     for (img in images) {
                         sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT} || exit 1"
                     }
