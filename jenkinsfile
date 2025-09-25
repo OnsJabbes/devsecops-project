@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+   agent {
+        docker {
+            image 'docker:24.0.5' 
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         DOCKER_USER = "onsonsonsons"
@@ -54,24 +59,24 @@ pipeline {
     }
 
 stage('Trivy Security Scan') {
-    steps {
-        script {
-            // Pré-télécharge la DB Trivy pour éviter les téléchargements répétitifs
-            sh "trivy image --download-db-only || true"
+            steps {
+                script {
+                    // Pré-télécharge la DB pour éviter les downloads à chaque run
+                    sh "trivy image --download-db-only || true"
 
-            def images = ["eureka-server", "formation-service", "user-service"]
-            for (img in images) {
-                def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
-                echo "🔍 Scanning image ${imgTag} with Trivy..."
-
-                // Scan local via Docker daemon pour éviter "no such image" ou timeout
-                sh """
-                    trivy image --exit-code 1 --severity HIGH,CRITICAL --light ${imgTag} || exit 1
-                """
+                    def images = ["eureka-server", "formation-service", "user-service"]
+                    for (img in images) {
+                        def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
+                        echo "🔍 Scanning image ${imgTag} with Trivy..."
+                        
+                        // Scan directement sur le daemon Docker local
+                        sh """
+                            trivy image --exit-code 1 --severity HIGH,CRITICAL --light ${imgTag} || exit 1
+                        """
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Docker Push') {
             steps {
