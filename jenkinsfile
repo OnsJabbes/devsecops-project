@@ -63,12 +63,14 @@ pipeline {
                 
                 sh """
                     docker save ${imgTag} -o ${img}.tar
-                    trivy image --exit-code 1 --severity HIGH,CRITICAL --input ${img}.tar || exit 1
+                    # Scan rapide avec timeout 10 minutes
+                    trivy image --exit-code 1 --severity HIGH,CRITICAL --input ${img}.tar --timeout 10m --light || exit 1
                 """
             }
         }
     }
 }
+
 
 
         stage('Docker Push') {
