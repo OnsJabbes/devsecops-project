@@ -53,14 +53,18 @@ pipeline {
       }
     }
 
-      stage('Trivy Security Scan') {
+stage('Trivy Security Scan') {
     steps {
         script {
+            // Pré-télécharge la DB Trivy pour éviter les téléchargements répétitifs
+            sh "trivy image --download-db-only || true"
+
             def images = ["eureka-server", "formation-service", "user-service"]
             for (img in images) {
                 def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
                 echo "🔍 Scanning image ${imgTag} with Trivy..."
 
+                // Scan local via Docker daemon pour éviter "no such image" ou timeout
                 sh """
                     trivy image --exit-code 1 --severity HIGH,CRITICAL --light ${imgTag} || exit 1
                 """
@@ -68,9 +72,6 @@ pipeline {
         }
     }
 }
-
-
-
 
         stage('Docker Push') {
             steps {
