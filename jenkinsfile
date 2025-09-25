@@ -56,17 +56,13 @@ pipeline {
       stage('Trivy Security Scan') {
     steps {
         script {
-            // Pré-télécharge la DB Trivy une seule fois (si besoin)
-            sh "trivy image --download-db-only || true"
-
             def images = ["eureka-server", "formation-service", "user-service"]
             for (img in images) {
                 def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
                 echo "🔍 Scanning image ${imgTag} with Trivy..."
 
-                // Scan rapide via Docker daemon local
                 sh """
-                    trivy image --exit-code 1 --severity HIGH,CRITICAL --scanners vuln --light ${imgTag} || exit 1
+                    trivy image --exit-code 1 --severity HIGH,CRITICAL --light ${imgTag} || exit 1
                 """
             }
         }
