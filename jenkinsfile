@@ -58,17 +58,19 @@ pipeline {
         script {
             def images = ["eureka-server", "formation-service", "user-service"]
             for (img in images) {
-                // Supprime les espaces ou retours chariot
-                def cleanTag = sh(script: "echo ${GIT_COMMIT_SHORT} | tr -d '\\n'", returnStdout: true).trim()
-                def imgTag = "${DOCKER_USER}/${img}:${cleanTag}"
+                def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
                 echo "🔍 Scanning image ${imgTag} with Trivy..."
                 
-                // Scan local avec docker://
-                sh "trivy image --exit-code 1 --severity HIGH,CRITICAL docker://${imgTag} || exit 1"
+                // Crée un tar local et scan
+                sh """
+                    docker save ${imgTag} -o ${img}.tar
+                    trivy image --exit-code 1 --severity HIGH,CRITICAL ${img}.tar || exit 1
+                """
             }
         }
     }
 }
+
 
 
         stage('Docker Push') {
