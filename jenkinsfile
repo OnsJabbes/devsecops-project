@@ -61,16 +61,14 @@ pipeline {
                 def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
                 echo "🔍 Scanning image ${imgTag} with Trivy..."
                 
-                // Crée un tar local et scan
                 sh """
                     docker save ${imgTag} -o ${img}.tar
-                    trivy image --exit-code 1 --severity HIGH,CRITICAL ${img}.tar || exit 1
+                    trivy image --exit-code 1 --severity HIGH,CRITICAL --input ${img}.tar || exit 1
                 """
             }
         }
     }
 }
-
 
 
         stage('Docker Push') {
