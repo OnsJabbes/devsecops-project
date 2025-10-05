@@ -5,70 +5,58 @@ pipeline {
         DOCKER_USER = "onsonsonsons"
         DOCKER_REGISTRY = "docker.io"
         GIT_COMMIT_SHORT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+        DOCKER_BUILDKIT = "1"
     }
 
     stages {
-        stage('Checkout & Prepare') {
+        stage('Checkout') {
             steps {
                 checkout scm
                 script {
                     env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    echo "Commit short: ${env.GIT_COMMIT_SHORT}"
+                    echo "🔧 Commit short: ${env.GIT_COMMIT_SHORT}"
                 }
             }
         }
 
-        stage('Checkout') {
-      steps {
-        checkout scm
-        script {
-          env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-          echo "Commit short: ${env.GIT_COMMIT_SHORT}"
+        stage('Prepare Buildx') {
+            steps {
+                sh '''
+                    export DOCKER_CLI_EXPERIMENTAL=enabled
+                    docker buildx inspect mybuilder >/dev/null 2>&1 || docker buildx create --use --name mybuilder
+                    docker buildx use mybuilder
+                '''
+            }
         }
-      }
-    }
 
-    stage('Prepare Buildx') {
-      steps {
-        sh '''
-          export DOCKER_CLI_EXPERIMENTAL=enabled
-          docker buildx inspect mybuilder >/dev/null 2>&1 || docker buildx create --use --name mybuilder
-          docker buildx use mybuilder
-        '''
-      }
-    }
-
-    stage('Build Docker Images (BuildKit)') {
-      steps {
-        script {
-          env.DOCKER_BUILDKIT = "1"
-          // Build images and load to local docker (so Trivy can scan)
-          sh """
-            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server --load
-            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service --load
-            docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service --load
-            
-          """
+        stage('Build Docker Images') {
+            steps {
+                sh """
+                    docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/eureka-server:${GIT_COMMIT_SHORT} ./backend/Eureka-Server --load
+                    docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT} ./backend/Formation-Service --load
+                    docker buildx build --platform linux/amd64 --progress=plain -t ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT} ./backend/User-Service --load
+                """
+            }
         }
-      }
-    }
 
-  stage('Docker Push') {
+        stage('Docker Push') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
-                        docker push ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT}
-                    """
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push "$DOCKER_USER/eureka-server:$GIT_COMMIT_SHORT"
+                        docker push "$DOCKER_USER/formation-service:$GIT_COMMIT_SHORT"
+                        docker push "$DOCKER_USER/user-service:$GIT_COMMIT_SHORT"
+                    '''
                 }
             }
         }
 
-
-      stage('Security Scan with Trivy') {
+        stage('Security Scan with Trivy') {
             steps {
-                sh 'trivy image --format json -o trivy-report.json my-app:latest'
+                sh """
+                    trivy image --format json -o trivy-report.json ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
+                """
                 archiveArtifacts artifacts: 'trivy-report.json', fingerprint: true
             }
         }
@@ -76,43 +64,38 @@ pipeline {
         stage('Parse Trivy Report') {
             steps {
                 script {
-                def report = readJSON file: 'trivy-report.json'
-                def vulnerabilities = []
+                    def report = readJSON file: 'trivy-report.json'
+                    def vulnerabilities = []
 
-                report.Results.each { result ->
-                    if (result.Vulnerabilities) {
-                    vulnerabilities += result.Vulnerabilities
+                    report.Results.each { result ->
+                        if (result.Vulnerabilities) {
+                            vulnerabilities += result.Vulnerabilities
+                        }
                     }
-                }
 
-                def criticals = vulnerabilities.findAll { it.Severity == 'CRITICAL' }
-                def highs = vulnerabilities.findAll { it.Severity == 'HIGH' }
+                    def criticals = vulnerabilities.findAll { it.Severity == 'CRITICAL' }
+                    def highs = vulnerabilities.findAll { it.Severity == 'HIGH' }
 
-                echo "🔍 Trivy found ${criticals.size()} CRITICAL and ${highs.size()} HIGH vulnerabilities."
+                    echo "🔍 Trivy found ${criticals.size()} CRITICAL and ${highs.size()} HIGH vulnerabilities."
 
-                if (criticals.size() > 0) {
-                    error("❌ Build failed due to ${criticals.size()} CRITICAL vulnerabilities.")
-                }
+                    if (criticals.size() > 0) {
+                        error("❌ Build failed due to ${criticals.size()} CRITICAL vulnerabilities.")
+                    }
                 }
             }
         }
 
-
-
-
-
-      
         stage('Deploy to EC2') {
             steps {
                 sshagent(['ec2-ssh-key']) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no ec2-user@18.215.53.218 '
-                        cd /home/ec2-user/devsecops-project &&
-                        docker-compose pull &&
-                        docker-compose down &&
-                        docker-compose up -d
-                    '
-                    """
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no ec2-user@18.215.53.218 '
+                            cd /home/ec2-user/devsecops-project &&
+                            docker-compose pull &&
+                            docker-compose down &&
+                            docker-compose up -d
+                        '
+                    '''
                 }
             }
         }
