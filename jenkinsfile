@@ -53,6 +53,19 @@ pipeline {
       }
     }
 
+  stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
+                        docker push ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT}
+                    """
+                }
+            }
+        }
+
+
       stage('Security Scan with Trivy') {
             steps {
                 sh 'trivy image --format json -o trivy-report.json my-app:latest'
@@ -88,18 +101,7 @@ pipeline {
 
 
 
-        stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${DOCKER_USER}/formation-service:${GIT_COMMIT_SHORT}
-                        docker push ${DOCKER_USER}/user-service:${GIT_COMMIT_SHORT}
-                    """
-                }
-            }
-        }
-
+      
         stage('Deploy to EC2') {
             steps {
                 sshagent(['ec2-ssh-key']) {
