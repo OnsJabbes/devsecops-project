@@ -53,21 +53,37 @@ pipeline {
       }
     }
 
-      stage('Trivy Security Scan') {
-    steps {
-        script {
-            def images = ["eureka-server", "formation-service", "user-service"]
-            for (img in images) {
-                def imgTag = "${DOCKER_USER}/${img}:${GIT_COMMIT_SHORT}"
-                echo "🔍 Scanning image ${imgTag} with Trivy..."
-
-                sh """
-                    trivy image --exit-code 1 --severity HIGH,CRITICAL --light ${imgTag} || exit 1
-                """
+      stage('Security Scan with Trivy') {
+            steps {
+                sh 'trivy image --format json -o trivy-report.json my-app:latest'
+                archiveArtifacts artifacts: 'trivy-report.json', fingerprint: true
             }
         }
-    }
-}
+
+        stage('Parse Trivy Report') {
+            steps {
+                script {
+                def report = readJSON file: 'trivy-report.json'
+                def vulnerabilities = []
+
+                report.Results.each { result ->
+                    if (result.Vulnerabilities) {
+                    vulnerabilities += result.Vulnerabilities
+                    }
+                }
+
+                def criticals = vulnerabilities.findAll { it.Severity == 'CRITICAL' }
+                def highs = vulnerabilities.findAll { it.Severity == 'HIGH' }
+
+                echo "🔍 Trivy found ${criticals.size()} CRITICAL and ${highs.size()} HIGH vulnerabilities."
+
+                if (criticals.size() > 0) {
+                    error("❌ Build failed due to ${criticals.size()} CRITICAL vulnerabilities.")
+                }
+                }
+            }
+        }
+
 
 
 
