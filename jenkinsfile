@@ -61,29 +61,32 @@ pipeline {
             }
         }
 
-        stage('Parse Trivy Report') {
-            steps {
-                script {
-                    def report = readJSON file: 'trivy-report.json'
-                    def vulnerabilities = []
+       stage('Parse Trivy Report') {
+    steps {
+        script {
+            def jsonText = readFile('trivy-report.json')
+            def report = groovy.json.JsonSlurper.newInstance().parseText(jsonText)
 
-                    report.Results.each { result ->
-                        if (result.Vulnerabilities) {
-                            vulnerabilities += result.Vulnerabilities
-                        }
-                    }
+            def vulnerabilities = []
 
-                    def criticals = vulnerabilities.findAll { it.Severity == 'CRITICAL' }
-                    def highs = vulnerabilities.findAll { it.Severity == 'HIGH' }
-
-                    echo "🔍 Trivy found ${criticals.size()} CRITICAL and ${highs.size()} HIGH vulnerabilities."
-
-                    if (criticals.size() > 0) {
-                        error("❌ Build failed due to ${criticals.size()} CRITICAL vulnerabilities.")
-                    }
+            report.Results.each { result ->
+                if (result != null && result.containsKey('Vulnerabilities') && result.Vulnerabilities != null) {
+                    vulnerabilities += result.Vulnerabilities
                 }
             }
+
+            def criticals = vulnerabilities.findAll { it.Severity == 'CRITICAL' }
+            def highs = vulnerabilities.findAll { it.Severity == 'HIGH' }
+
+            echo "🔍 Trivy found ${criticals.size()} CRITICAL and ${highs.size()} HIGH vulnerabilities."
+
+            if (criticals.size() > 0) {
+                error("❌ Build failed due to ${criticals.size()} CRITICAL vulnerabilities.")
+            }
         }
+    }
+}
+
 
         stage('Deploy to EC2') {
             steps {
