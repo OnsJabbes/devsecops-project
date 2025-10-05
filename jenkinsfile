@@ -65,7 +65,7 @@ pipeline {
     steps {
         script {
             def jsonText = readFile('trivy-report.json')
-            def report = groovy.json.JsonSlurper.newInstance().parseText(jsonText)
+            def report = new groovy.json.JsonSlurper().parseText(jsonText)
 
             def vulnerabilities = []
 
@@ -86,6 +86,7 @@ pipeline {
         }
     }
 }
+
 
 
         stage('Deploy to EC2') {
