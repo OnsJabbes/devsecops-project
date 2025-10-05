@@ -75,17 +75,19 @@ pipeline {
                 }
             }
 
-            def criticals = vulnerabilities.findAll { it.Severity == 'CRITICAL' }
-            def highs = vulnerabilities.findAll { it.Severity == 'HIGH' }
+            def grouped = vulnerabilities.groupBy { it.Severity }
+            grouped.each { severity, items ->
+                echo "🛡️ ${severity}: ${items.size()} vulnerabilities"
+            }
 
-            echo "🔍 Trivy found ${criticals.size()} CRITICAL and ${highs.size()} HIGH vulnerabilities."
-
+            def criticals = grouped['CRITICAL'] ?: []
             if (criticals.size() > 0) {
                 error("❌ Build failed due to ${criticals.size()} CRITICAL vulnerabilities.")
             }
         }
     }
 }
+
 
 
 
